@@ -2,10 +2,7 @@
 // FOCUS TRACKER 2.0 - POPUP.JS
 // =====================================
 
-// -----------------------------
 // TIMER
-// -----------------------------
-
 let focusDuration = 25;
 let breakDuration = 5;
 let timerSeconds = focusDuration * 60;
@@ -13,35 +10,20 @@ let timerRunning = false;
 let timerInterval = null;
 let timerMode = "focus";
 
-// -----------------------------
 // TRACKING DATA
-// -----------------------------
-
 let focusTime = 0;
 let breakTime = 0;
 let sessions = 0;
-
-// Daily goal
 let timeLimit = 120;
-
-// Tasks
 let tasks = [];
-
-// Website usage
 let websiteUsage = {};
 
-// =====================================
 // GET ELEMENT
-// =====================================
-
 function getElement(id) {
     return document.getElementById(id);
 }
 
-// =====================================
 // LOAD DATA
-// =====================================
-
 function loadData() {
     chrome.storage.local.get(
         [
@@ -58,7 +40,6 @@ function loadData() {
             focusTime = Number(data.focusTime) || 0;
             breakTime = Number(data.breakTime) || 0;
             sessions = Number(data.sessions) || 0;
-
             timeLimit = Number(data.timeLimit) || 120;
             focusDuration = Number(data.focusDuration) || 25;
             breakDuration = Number(data.breakDuration) || 5;
@@ -87,6 +68,11 @@ function loadData() {
                 breakInput.value = breakDuration;
             }
 
+            // IMPORTANT: Load the saved duration into the timer.
+            timerSeconds =
+                (timerMode === "focus" ? focusDuration : breakDuration) * 60;
+
+            updateTimer();
             renderTasks();
             updateStats();
             updateWebsiteUsage();
@@ -94,24 +80,16 @@ function loadData() {
     );
 }
 
-// =====================================
 // CURRENT WEBSITE
-// =====================================
-
 function updateCurrentWebsite() {
     const websiteElement = getElement("website");
 
-    if (!websiteElement) {
-        return;
-    }
+    if (!websiteElement) return;
 
     chrome.tabs.query(
-        {
-            active: true,
-            currentWindow: true
-        },
+        { active: true, currentWindow: true },
         function (tabs) {
-            if (!tabs || tabs.length === 0 || !tabs[0].url) {
+            if (!tabs || !tabs.length || !tabs[0].url) {
                 websiteElement.innerText = "Unknown website";
                 return;
             }
@@ -127,10 +105,7 @@ function updateCurrentWebsite() {
     );
 }
 
-// =====================================
 // TIMER DISPLAY
-// =====================================
-
 function updateTimer() {
     const timerElement = getElement("timer");
     const modeElement = getElement("mode");
@@ -153,14 +128,9 @@ function updateTimer() {
     }
 }
 
-// =====================================
 // START TIMER
-// =====================================
-
 function startTimer() {
-    if (timerRunning) {
-        return;
-    }
+    if (timerRunning) return;
 
     timerRunning = true;
 
@@ -170,16 +140,10 @@ function startTimer() {
 
             if (timerMode === "focus") {
                 focusTime++;
-
-                chrome.storage.local.set({
-                    focusTime: focusTime
-                });
+                chrome.storage.local.set({ focusTime: focusTime });
             } else {
                 breakTime++;
-
-                chrome.storage.local.set({
-                    breakTime: breakTime
-                });
+                chrome.storage.local.set({ breakTime: breakTime });
             }
 
             updateTimer();
@@ -190,10 +154,7 @@ function startTimer() {
     }, 1000);
 }
 
-// =====================================
 // PAUSE TIMER
-// =====================================
-
 function pauseTimer() {
     timerRunning = false;
 
@@ -203,10 +164,7 @@ function pauseTimer() {
     }
 }
 
-// =====================================
 // RESET TIMER
-// =====================================
-
 function resetTimer() {
     pauseTimer();
 
@@ -216,19 +174,13 @@ function resetTimer() {
     updateTimer();
 }
 
-// =====================================
 // COMPLETE TIMER
-// =====================================
-
 function completeTimer() {
     pauseTimer();
 
     if (timerMode === "focus") {
         sessions++;
-
-        chrome.storage.local.set({
-            sessions: sessions
-        });
+        chrome.storage.local.set({ sessions: sessions });
 
         timerMode = "break";
         timerSeconds = breakDuration * 60;
@@ -241,16 +193,11 @@ function completeTimer() {
     updateStats();
 }
 
-// =====================================
 // CUSTOM TIMER DURATIONS
-// =====================================
-
 function createDurationControls() {
     const timerSection = document.querySelector(".timer-section");
 
-    if (!timerSection || getElement("durationSettings")) {
-        return;
-    }
+    if (!timerSection || getElement("durationSettings")) return;
 
     const settings = document.createElement("div");
     settings.id = "durationSettings";
@@ -309,29 +256,22 @@ function createDurationControls() {
     settings.appendChild(savedMessage);
 
     timerSection.appendChild(settings);
-
     saveButton.addEventListener("click", saveTimerDurations);
 }
 
+// SAVE TIMER DURATIONS
 function saveTimerDurations() {
     const focusInput = getElement("focusDurationInput");
     const breakInput = getElement("breakDurationInput");
     const message = getElement("durationsSaved");
 
-    if (!focusInput || !breakInput) {
-        return;
-    }
+    if (!focusInput || !breakInput) return;
 
     let newFocusDuration = parseInt(focusInput.value, 10);
     let newBreakDuration = parseInt(breakInput.value, 10);
 
-    if (!Number.isFinite(newFocusDuration)) {
-        newFocusDuration = 25;
-    }
-
-    if (!Number.isFinite(newBreakDuration)) {
-        newBreakDuration = 5;
-    }
+    if (!Number.isFinite(newFocusDuration)) newFocusDuration = 25;
+    if (!Number.isFinite(newBreakDuration)) newBreakDuration = 5;
 
     newFocusDuration = Math.min(180, Math.max(1, newFocusDuration));
     newBreakDuration = Math.min(60, Math.max(1, newBreakDuration));
@@ -354,27 +294,19 @@ function saveTimerDurations() {
 
             if (!timerRunning) {
                 timerSeconds =
-                    (timerMode === "focus"
-                        ? focusDuration
-                        : breakDuration) * 60;
-
+                    (timerMode === "focus" ? focusDuration : breakDuration) * 60;
                 updateTimer();
             }
         }
     );
 }
 
-// =====================================
 // DAILY GOAL
-// =====================================
-
 function setDailyGoal() {
     const input = getElement("timeLimit");
     const message = getElement("goalSaved");
 
-    if (!input) {
-        return;
-    }
+    if (!input) return;
 
     let value = parseInt(input.value, 10);
 
@@ -385,25 +317,16 @@ function setDailyGoal() {
 
     timeLimit = value;
 
-    chrome.storage.local.set(
-        {
-            timeLimit: timeLimit
-        },
-        function () {
-            if (message) {
-                message.innerText =
-                    "✓ Goal saved: " + timeLimit + " minutes";
-            }
-
-            updateStats();
+    chrome.storage.local.set({ timeLimit: timeLimit }, function () {
+        if (message) {
+            message.innerText = "✓ Goal saved: " + timeLimit + " minutes";
         }
-    );
+
+        updateStats();
+    });
 }
 
-// =====================================
 // PRODUCTIVITY SCORE
-// =====================================
-
 function calculateScore() {
     const goalSeconds = timeLimit * 60;
     let score = 0;
@@ -418,35 +341,18 @@ function calculateScore() {
 
     score += completedTasks * 5;
 
-    if (score > 100) {
-        score = 100;
-    }
-
-    if (score < 0) {
-        score = 0;
-    }
-
-    return Math.round(score);
+    return Math.round(Math.min(100, Math.max(0, score)));
 }
 
-// =====================================
 // UPDATE STATISTICS
-// =====================================
-
 function updateStats() {
     const score = calculateScore();
-
     const scoreElement = getElement("score");
     const progressBar = getElement("progressBar");
     const statusText = getElement("statusText");
 
-    if (scoreElement) {
-        scoreElement.innerText = score + "%";
-    }
-
-    if (progressBar) {
-        progressBar.style.width = score + "%";
-    }
+    if (scoreElement) scoreElement.innerText = score + "%";
+    if (progressBar) progressBar.style.width = score + "%";
 
     if (statusText) {
         if (focusTime >= timeLimit * 60) {
@@ -454,7 +360,6 @@ function updateStats() {
         } else {
             const remaining = timeLimit * 60 - focusTime;
             const minutesRemaining = Math.ceil(remaining / 60);
-
             statusText.innerText =
                 "⏳ " + minutesRemaining + " min remaining";
         }
@@ -465,27 +370,13 @@ function updateStats() {
     const statSessions = getElement("statSessions");
     const statTasks = getElement("statTasks");
 
-    if (statFocus) {
-        statFocus.innerText = formatTime(focusTime);
-    }
-
-    if (statBreak) {
-        statBreak.innerText = formatTime(breakTime);
-    }
-
-    if (statSessions) {
-        statSessions.innerText = sessions;
-    }
-
-    if (statTasks) {
-        statTasks.innerText = tasks.length;
-    }
+    if (statFocus) statFocus.innerText = formatTime(focusTime);
+    if (statBreak) statBreak.innerText = formatTime(breakTime);
+    if (statSessions) statSessions.innerText = sessions;
+    if (statTasks) statTasks.innerText = tasks.length;
 }
 
-// =====================================
 // FORMAT TIME
-// =====================================
-
 function formatTime(seconds) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -497,16 +388,11 @@ function formatTime(seconds) {
     );
 }
 
-// =====================================
 // WEBSITE USAGE
-// =====================================
-
 function updateWebsiteUsage() {
     const usageList = getElement("usageList");
 
-    if (!usageList) {
-        return;
-    }
+    if (!usageList) return;
 
     if (!websiteUsage || Object.keys(websiteUsage).length === 0) {
         usageList.innerText = "No usage data yet.";
@@ -514,7 +400,6 @@ function updateWebsiteUsage() {
     }
 
     const websites = Object.entries(websiteUsage);
-
     websites.sort(function (a, b) {
         return b[1] - a[1];
     });
@@ -529,27 +414,18 @@ function updateWebsiteUsage() {
         const row = document.createElement("div");
         row.className = "usage-item";
         row.innerText = website + " - " + minutes + " min";
-
         usageList.appendChild(row);
     });
 }
 
-// =====================================
 // TASKS
-// =====================================
-
 function addTask() {
     const input = getElement("taskInput");
 
-    if (!input) {
-        return;
-    }
+    if (!input) return;
 
     const text = input.value.trim();
-
-    if (text === "") {
-        return;
-    }
+    if (text === "") return;
 
     tasks.push({
         id: Date.now(),
@@ -558,32 +434,21 @@ function addTask() {
     });
 
     input.value = "";
-
     saveTasks();
     renderTasks();
     updateStats();
 }
 
-// =====================================
 // SAVE TASKS
-// =====================================
-
 function saveTasks() {
-    chrome.storage.local.set({
-        tasks: tasks
-    });
+    chrome.storage.local.set({ tasks: tasks });
 }
 
-// =====================================
 // RENDER TASKS
-// =====================================
-
 function renderTasks() {
     const taskList = getElement("taskList");
 
-    if (!taskList) {
-        return;
-    }
+    if (!taskList) return;
 
     taskList.innerHTML = "";
 
@@ -596,7 +461,6 @@ function renderTasks() {
 
         checkbox.addEventListener("change", function () {
             task.completed = checkbox.checked;
-
             saveTasks();
             updateStats();
             renderTasks();
@@ -625,15 +489,11 @@ function renderTasks() {
         li.appendChild(checkbox);
         li.appendChild(span);
         li.appendChild(deleteButton);
-
         taskList.appendChild(li);
     });
 }
 
-// =====================================
 // BUTTON EVENTS
-// =====================================
-
 document.addEventListener("DOMContentLoaded", function () {
     const startBtn = getElement("startBtn");
     const pauseBtn = getElement("pauseBtn");
@@ -641,33 +501,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const saveLimit = getElement("saveLimit");
     const addTaskButton = getElement("addTask");
 
-    if (startBtn) {
-        startBtn.addEventListener("click", startTimer);
-    }
-
-    if (pauseBtn) {
-        pauseBtn.addEventListener("click", pauseTimer);
-    }
-
-    if (resetBtn) {
-        resetBtn.addEventListener("click", resetTimer);
-    }
-
-    if (saveLimit) {
-        saveLimit.addEventListener("click", setDailyGoal);
-    }
-
-    if (addTaskButton) {
-        addTaskButton.addEventListener("click", addTask);
-    }
+    if (startBtn) startBtn.addEventListener("click", startTimer);
+    if (pauseBtn) pauseBtn.addEventListener("click", pauseTimer);
+    if (resetBtn) resetBtn.addEventListener("click", resetTimer);
+    if (saveLimit) saveLimit.addEventListener("click", setDailyGoal);
+    if (addTaskButton) addTaskButton.addEventListener("click", addTask);
 
     const taskInput = getElement("taskInput");
 
     if (taskInput) {
         taskInput.addEventListener("keydown", function (event) {
-            if (event.key === "Enter") {
-                addTask();
-            }
+            if (event.key === "Enter") addTask();
         });
     }
 
@@ -679,14 +523,9 @@ document.addEventListener("DOMContentLoaded", function () {
     setInterval(updateCurrentWebsite, 2000);
 });
 
-// =====================================
 // STORAGE LISTENER
-// =====================================
-
 chrome.storage.onChanged.addListener(function (changes, areaName) {
-    if (areaName !== "local") {
-        return;
-    }
+    if (areaName !== "local") return;
 
     if (changes.websiteUsage) {
         websiteUsage = changes.websiteUsage.newValue || {};
