@@ -6,7 +6,9 @@
 // TIMER
 // -----------------------------
 
-let timerSeconds = 25 * 60;
+let focusDuration = 25;
+let breakDuration = 5;
+let timerSeconds = focusDuration * 60;
 let timerRunning = false;
 let timerInterval = null;
 let timerMode = "focus";
@@ -43,23 +45,25 @@ function getElement(id) {
 // =====================================
 
 function loadData() {
-
     chrome.storage.local.get(
         [
             "focusTime",
             "breakTime",
             "sessions",
             "timeLimit",
+            "focusDuration",
+            "breakDuration",
             "tasks",
             "websiteUsage"
         ],
         function(data) {
-
             focusTime = Number(data.focusTime) || 0;
             breakTime = Number(data.breakTime) || 0;
             sessions = Number(data.sessions) || 0;
 
             timeLimit = Number(data.timeLimit) || 120;
+            focusDuration = Number(data.focusDuration) || 25;
+            breakDuration = Number(data.breakDuration) || 5;
 
             tasks = Array.isArray(data.tasks)
                 ? data.tasks
@@ -72,11 +76,26 @@ function loadData() {
                     : {};
 
             const limitInput = getElement("timeLimit");
+            const focusDurationInput = getElement("focusDurationInput");
+            const breakDurationInput = getElement("breakDurationInput");
 
             if (limitInput) {
                 limitInput.value = timeLimit;
             }
 
+            if (focusDurationInput) {
+                focusDurationInput.value = focusDuration;
+            }
+
+            if (breakDurationInput) {
+                breakDurationInput.value = breakDuration;
+            }
+
+            // Apply the saved duration when the popup opens.
+            timerSeconds =
+                (timerMode === "focus" ? focusDuration : breakDuration) * 60;
+
+            updateTimer();
             renderTasks();
             updateStats();
             updateWebsiteUsage();
@@ -90,7 +109,6 @@ function loadData() {
 // =====================================
 
 function updateCurrentWebsite() {
-
     const websiteElement = getElement("website");
 
     if (!websiteElement) {
@@ -103,44 +121,25 @@ function updateCurrentWebsite() {
             currentWindow: true
         },
         function(tabs) {
-
             if (!tabs || tabs.length === 0) {
-
-                websiteElement.innerText =
-                    "Unknown website";
-
+                websiteElement.innerText = "Unknown website";
                 return;
             }
 
             const tab = tabs[0];
 
             if (!tab.url) {
-
-                websiteElement.innerText =
-                    "Unknown website";
-
+                websiteElement.innerText = "Unknown website";
                 return;
             }
 
             try {
-
                 const url = new URL(tab.url);
-
-                let hostname = url.hostname;
-
-                if (!hostname) {
-
-                    hostname = "Unknown website";
-
-                }
+                const hostname = url.hostname || "Unknown website";
 
                 websiteElement.innerText = hostname;
-
             } catch (error) {
-
-                websiteElement.innerText =
-                    "Unknown website";
-
+                websiteElement.innerText = "Unknown website";
             }
         }
     );
@@ -152,7 +151,6 @@ function updateCurrentWebsite() {
 // =====================================
 
 function updateTimer() {
-
     const timerElement = getElement("timer");
     const modeElement = getElement("mode");
 
@@ -160,11 +158,8 @@ function updateTimer() {
         return;
     }
 
-    const minutes =
-        Math.floor(timerSeconds / 60);
-
-    const seconds =
-        timerSeconds % 60;
+    const minutes = Math.floor(timerSeconds / 60);
+    const seconds = timerSeconds % 60;
 
     timerElement.innerText =
         String(minutes).padStart(2, "0") +
@@ -172,18 +167,10 @@ function updateTimer() {
         String(seconds).padStart(2, "0");
 
     if (modeElement) {
-
-        if (timerMode === "focus") {
-
-            modeElement.innerText =
-                "Focus Session";
-
-        } else {
-
-            modeElement.innerText =
-                "Break Session";
-
-        }
+        modeElement.innerText =
+            timerMode === "focus"
+                ? "Focus Session"
+                : "Break Session";
     }
 }
 
@@ -193,7 +180,6 @@ function updateTimer() {
 // =====================================
 
 function startTimer() {
-
     if (timerRunning) {
         return;
     }
@@ -202,21 +188,16 @@ function startTimer() {
 
     timerInterval = setInterval(
         function() {
-
             if (timerSeconds > 0) {
-
                 timerSeconds--;
 
                 if (timerMode === "focus") {
-
                     focusTime++;
 
                     chrome.storage.local.set({
                         focusTime: focusTime
                     });
-
                 } else {
-
                     breakTime++;
 
                     chrome.storage.local.set({
@@ -226,13 +207,9 @@ function startTimer() {
 
                 updateTimer();
                 updateStats();
-
             } else {
-
                 completeTimer();
-
             }
-
         },
         1000
     );
@@ -244,13 +221,10 @@ function startTimer() {
 // =====================================
 
 function pauseTimer() {
-
     timerRunning = false;
 
     if (timerInterval) {
-
         clearInterval(timerInterval);
-
         timerInterval = null;
     }
 }
@@ -261,18 +235,10 @@ function pauseTimer() {
 // =====================================
 
 function resetTimer() {
-
     pauseTimer();
 
-    if (timerMode === "focus") {
-
-        timerSeconds = 25 * 60;
-
-    } else {
-
-        timerSeconds = 5 * 60;
-
-    }
+    timerSeconds =
+        (timerMode === "focus" ? focusDuration : breakDuration) * 60;
 
     updateTimer();
 }
@@ -283,11 +249,9 @@ function resetTimer() {
 // =====================================
 
 function completeTimer() {
-
     pauseTimer();
 
     if (timerMode === "focus") {
-
         sessions++;
 
         chrome.storage.local.set({
@@ -295,13 +259,10 @@ function completeTimer() {
         });
 
         timerMode = "break";
-        timerSeconds = 5 * 60;
-
+        timerSeconds = breakDuration * 60;
     } else {
-
         timerMode = "focus";
-        timerSeconds = 25 * 60;
-
+        timerSeconds = focusDuration * 60;
     }
 
     updateTimer();
@@ -310,28 +271,145 @@ function completeTimer() {
 
 
 // =====================================
+// CUSTOM TIMER DURATIONS
+// =====================================
+
+function createDurationControls() {
+    const timerSection = document.querySelector(".timer-section");
+
+    if (!timerSection || getElement("durationSettings")) {
+        return;
+    }
+
+    const settings = document.createElement("div");
+    settings.id = "durationSettings";
+    settings.style.marginTop = "12px";
+    settings.style.padding = "10px";
+    settings.style.borderRadius = "8px";
+    settings.style.background = "rgba(127, 127, 127, 0.12)";
+
+    const heading = document.createElement("h3");
+    heading.innerText = "⏱ Timer Durations";
+    heading.style.margin = "0 0 8px";
+    settings.appendChild(heading);
+
+    const focusLabel = document.createElement("label");
+    focusLabel.htmlFor = "focusDurationInput";
+    focusLabel.innerText = "Focus (minutes) ";
+
+    const focusInput = document.createElement("input");
+    focusInput.type = "number";
+    focusInput.id = "focusDurationInput";
+    focusInput.min = "1";
+    focusInput.max = "180";
+    focusInput.value = String(focusDuration);
+    focusInput.style.width = "60px";
+    focusInput.style.margin = "4px 8px 8px 0";
+
+    focusLabel.appendChild(focusInput);
+    settings.appendChild(focusLabel);
+
+    const breakLabel = document.createElement("label");
+    breakLabel.htmlFor = "breakDurationInput";
+    breakLabel.innerText = "Break (minutes) ";
+
+    const breakInput = document.createElement("input");
+    breakInput.type = "number";
+    breakInput.id = "breakDurationInput";
+    breakInput.min = "1";
+    breakInput.max = "60";
+    breakInput.value = String(breakDuration);
+    breakInput.style.width = "60px";
+    breakInput.style.margin = "4px 0 8px";
+
+    breakLabel.appendChild(breakInput);
+    settings.appendChild(breakLabel);
+
+    const saveButton = document.createElement("button");
+    saveButton.id = "saveDurations";
+    saveButton.innerText = "Save Durations";
+    saveButton.style.display = "block";
+    saveButton.style.marginTop = "6px";
+    settings.appendChild(saveButton);
+
+    const savedMessage = document.createElement("p");
+    savedMessage.id = "durationsSaved";
+    savedMessage.style.margin = "6px 0 0";
+    settings.appendChild(savedMessage);
+
+    timerSection.appendChild(settings);
+
+    saveButton.addEventListener("click", saveTimerDurations);
+}
+
+
+// =====================================
+// SAVE TIMER DURATIONS
+// =====================================
+
+function saveTimerDurations() {
+    const focusInput = getElement("focusDurationInput");
+    const breakInput = getElement("breakDurationInput");
+    const message = getElement("durationsSaved");
+
+    let newFocusDuration = parseInt(focusInput.value, 10);
+    let newBreakDuration = parseInt(breakInput.value, 10);
+
+    if (!Number.isFinite(newFocusDuration)) {
+        newFocusDuration = 25;
+    }
+
+    if (!Number.isFinite(newBreakDuration)) {
+        newBreakDuration = 5;
+    }
+
+    newFocusDuration = Math.min(180, Math.max(1, newFocusDuration));
+    newBreakDuration = Math.min(60, Math.max(1, newBreakDuration));
+
+    focusInput.value = newFocusDuration;
+    breakInput.value = newBreakDuration;
+
+    focusDuration = newFocusDuration;
+    breakDuration = newBreakDuration;
+
+    chrome.storage.local.set(
+        {
+            focusDuration: focusDuration,
+            breakDuration: breakDuration
+        },
+        function() {
+            if (message) {
+                message.innerText = "✓ Timer durations saved";
+            }
+
+            // Apply the new duration if the timer is not running.
+            if (!timerRunning) {
+                timerSeconds =
+                    (timerMode === "focus" ? focusDuration : breakDuration) * 60;
+
+                updateTimer();
+            }
+        }
+    );
+}
+
+
+// =====================================
 // DAILY GOAL
 // =====================================
 
 function setDailyGoal() {
-
-    const input =
-        getElement("timeLimit");
-
-    const message =
-        getElement("goalSaved");
+    const input = getElement("timeLimit");
+    const message = getElement("goalSaved");
 
     if (!input) {
         return;
     }
 
-    let value =
-        parseInt(input.value, 10);
+    let value = parseInt(input.value, 10);
 
     if (isNaN(value) || value < 15) {
-
         value = 15;
-
         input.value = 15;
     }
 
@@ -342,14 +420,9 @@ function setDailyGoal() {
             timeLimit: timeLimit
         },
         function() {
-
             if (message) {
-
                 message.innerText =
-                    "✓ Goal saved: " +
-                    timeLimit +
-                    " minutes";
-
+                    "✓ Goal saved: " + timeLimit + " minutes";
             }
 
             updateStats();
@@ -363,30 +436,22 @@ function setDailyGoal() {
 // =====================================
 
 function calculateScore() {
-
-    const goalSeconds =
-        timeLimit * 60;
+    const goalSeconds = timeLimit * 60;
 
     let score = 0;
 
     if (goalSeconds > 0) {
-
-        score =
-            (focusTime / goalSeconds) * 100;
-
+        score = (focusTime / goalSeconds) * 100;
     }
 
     // Task bonus
-    const completedTasks =
-        tasks.filter(
-            function(task) {
-                return task.completed === true;
-            }
-        ).length;
+    const completedTasks = tasks.filter(
+        function(task) {
+            return task.completed === true;
+        }
+    ).length;
 
-    score =
-        score +
-        (completedTasks * 5);
+    score = score + (completedTasks * 5);
 
     if (score > 100) {
         score = 100;
@@ -405,88 +470,52 @@ function calculateScore() {
 // =====================================
 
 function updateStats() {
+    const score = calculateScore();
 
-    const score =
-        calculateScore();
-
-    const scoreElement =
-        getElement("score");
-
-    const progressBar =
-        getElement("progressBar");
-
-    const statusText =
-        getElement("statusText");
+    const scoreElement = getElement("score");
+    const progressBar = getElement("progressBar");
+    const statusText = getElement("statusText");
 
     if (scoreElement) {
-
-        scoreElement.innerText =
-            score + "%";
+        scoreElement.innerText = score + "%";
     }
 
     if (progressBar) {
-
-        progressBar.style.width =
-            score + "%";
+        progressBar.style.width = score + "%";
     }
 
     if (statusText) {
-
         if (focusTime >= timeLimit * 60) {
-
-            statusText.innerText =
-                "🎉 Daily Goal Completed";
-
+            statusText.innerText = "🎉 Daily Goal Completed";
         } else {
-
-            const remaining =
-                (timeLimit * 60) - focusTime;
-
-            const minutesRemaining =
-                Math.ceil(remaining / 60);
+            const remaining = (timeLimit * 60) - focusTime;
+            const minutesRemaining = Math.ceil(remaining / 60);
 
             statusText.innerText =
-                "⏳ " +
-                minutesRemaining +
-                " min remaining";
+                "⏳ " + minutesRemaining + " min remaining";
         }
     }
 
     // Optional elements
-    const statFocus =
-        getElement("statFocus");
-
-    const statBreak =
-        getElement("statBreak");
-
-    const statSessions =
-        getElement("statSessions");
-
-    const statTasks =
-        getElement("statTasks");
+    const statFocus = getElement("statFocus");
+    const statBreak = getElement("statBreak");
+    const statSessions = getElement("statSessions");
+    const statTasks = getElement("statTasks");
 
     if (statFocus) {
-
-        statFocus.innerText =
-            formatTime(focusTime);
+        statFocus.innerText = formatTime(focusTime);
     }
 
     if (statBreak) {
-
-        statBreak.innerText =
-            formatTime(breakTime);
+        statBreak.innerText = formatTime(breakTime);
     }
 
     if (statSessions) {
-
-        statSessions.innerText =
-            sessions;
+        statSessions.innerText = sessions;
     }
 
     if (statTasks) {
-
-        statTasks.innerText =
-            tasks.length;
+        statTasks.innerText = tasks.length;
     }
 }
 
@@ -496,12 +525,8 @@ function updateStats() {
 // =====================================
 
 function formatTime(seconds) {
-
-    const minutes =
-        Math.floor(seconds / 60);
-
-    const remainingSeconds =
-        seconds % 60;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
 
     return (
         String(minutes).padStart(2, "0") +
@@ -516,9 +541,7 @@ function formatTime(seconds) {
 // =====================================
 
 function updateWebsiteUsage() {
-
-    const usageList =
-        getElement("usageList");
+    const usageList = getElement("usageList");
 
     if (!usageList) {
         return;
@@ -528,15 +551,11 @@ function updateWebsiteUsage() {
         !websiteUsage ||
         Object.keys(websiteUsage).length === 0
     ) {
-
-        usageList.innerText =
-            "No usage data yet.";
-
+        usageList.innerText = "No usage data yet.";
         return;
     }
 
-    const websites =
-        Object.entries(websiteUsage);
+    const websites = Object.entries(websiteUsage);
 
     websites.sort(
         function(a, b) {
@@ -548,27 +567,13 @@ function updateWebsiteUsage() {
 
     websites.forEach(
         function(item) {
+            const website = item[0];
+            const seconds = Number(item[1]) || 0;
+            const minutes = Math.floor(seconds / 60);
 
-            const website =
-                item[0];
-
-            const seconds =
-                Number(item[1]) || 0;
-
-            const minutes =
-                Math.floor(seconds / 60);
-
-            const row =
-                document.createElement("div");
-
-            row.className =
-                "usage-item";
-
-            row.innerText =
-                website +
-                " - " +
-                minutes +
-                " min";
+            const row = document.createElement("div");
+            row.className = "usage-item";
+            row.innerText = website + " - " + minutes + " min";
 
             usageList.appendChild(row);
         }
@@ -581,16 +586,13 @@ function updateWebsiteUsage() {
 // =====================================
 
 function addTask() {
-
-    const input =
-        getElement("taskInput");
+    const input = getElement("taskInput");
 
     if (!input) {
         return;
     }
 
-    const text =
-        input.value.trim();
+    const text = input.value.trim();
 
     if (text === "") {
         return;
@@ -615,7 +617,6 @@ function addTask() {
 // =====================================
 
 function saveTasks() {
-
     chrome.storage.local.set({
         tasks: tasks
     });
@@ -627,9 +628,7 @@ function saveTasks() {
 // =====================================
 
 function renderTasks() {
-
-    const taskList =
-        getElement("taskList");
+    const taskList = getElement("taskList");
 
     if (!taskList) {
         return;
@@ -639,25 +638,16 @@ function renderTasks() {
 
     tasks.forEach(
         function(task) {
+            const li = document.createElement("li");
 
-            const li =
-                document.createElement("li");
-
-            const checkbox =
-                document.createElement("input");
-
-            checkbox.type =
-                "checkbox";
-
-            checkbox.checked =
-                task.completed;
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = task.completed;
 
             checkbox.addEventListener(
                 "change",
                 function() {
-
-                    task.completed =
-                        checkbox.checked;
+                    task.completed = checkbox.checked;
 
                     saveTasks();
                     updateStats();
@@ -665,34 +655,24 @@ function renderTasks() {
                 }
             );
 
-            const span =
-                document.createElement("span");
-
-            span.innerText =
-                task.text;
+            const span = document.createElement("span");
+            span.innerText = task.text;
 
             if (task.completed) {
-
-                span.style.textDecoration =
-                    "line-through";
+                span.style.textDecoration = "line-through";
             }
 
-            const deleteButton =
-                document.createElement("button");
-
-            deleteButton.innerText =
-                "Delete";
+            const deleteButton = document.createElement("button");
+            deleteButton.innerText = "Delete";
 
             deleteButton.addEventListener(
                 "click",
                 function() {
-
-                    tasks =
-                        tasks.filter(
-                            function(t) {
-                                return t.id !== task.id;
-                            }
-                        );
+                    tasks = tasks.filter(
+                        function(t) {
+                            return t.id !== task.id;
+                        }
+                    );
 
                     saveTasks();
                     renderTasks();
@@ -717,85 +697,51 @@ function renderTasks() {
 document.addEventListener(
     "DOMContentLoaded",
     function() {
-
-        const startBtn =
-            getElement("startBtn");
-
-        const pauseBtn =
-            getElement("pauseBtn");
-
-        const resetBtn =
-            getElement("resetBtn");
-
-        const saveLimit =
-            getElement("saveLimit");
-
-        const addTaskButton =
-            getElement("addTask");
+        const startBtn = getElement("startBtn");
+        const pauseBtn = getElement("pauseBtn");
+        const resetBtn = getElement("resetBtn");
+        const saveLimit = getElement("saveLimit");
+        const addTaskButton = getElement("addTask");
 
         if (startBtn) {
-
-            startBtn.addEventListener(
-                "click",
-                startTimer
-            );
+            startBtn.addEventListener("click", startTimer);
         }
 
         if (pauseBtn) {
-
-            pauseBtn.addEventListener(
-                "click",
-                pauseTimer
-            );
+            pauseBtn.addEventListener("click", pauseTimer);
         }
 
         if (resetBtn) {
-
-            resetBtn.addEventListener(
-                "click",
-                resetTimer
-            );
+            resetBtn.addEventListener("click", resetTimer);
         }
 
         if (saveLimit) {
-
-            saveLimit.addEventListener(
-                "click",
-                setDailyGoal
-            );
+            saveLimit.addEventListener("click", setDailyGoal);
         }
 
         if (addTaskButton) {
-
-            addTaskButton.addEventListener(
-                "click",
-                addTask
-            );
+            addTaskButton.addEventListener("click", addTask);
         }
 
-        const taskInput =
-            getElement("taskInput");
+        const taskInput = getElement("taskInput");
 
         if (taskInput) {
-
             taskInput.addEventListener(
                 "keydown",
                 function(event) {
-
                     if (event.key === "Enter") {
-
                         addTask();
                     }
                 }
             );
         }
 
+        createDurationControls();
         loadData();
         updateCurrentWebsite();
         updateTimer();
 
-        // Refresh website
-        // every 2 seconds while popup is open
+        // Refresh website while the popup is open.
         setInterval(
             updateCurrentWebsite,
             2000
@@ -810,40 +756,27 @@ document.addEventListener(
 
 chrome.storage.onChanged.addListener(
     function(changes, areaName) {
-
         if (areaName !== "local") {
             return;
         }
 
         if (changes.websiteUsage) {
-
-            websiteUsage =
-                changes.websiteUsage.newValue || {};
-
+            websiteUsage = changes.websiteUsage.newValue || {};
             updateWebsiteUsage();
         }
 
         if (changes.focusTime) {
-
-            focusTime =
-                Number(changes.focusTime.newValue) || 0;
-
+            focusTime = Number(changes.focusTime.newValue) || 0;
             updateStats();
         }
 
         if (changes.breakTime) {
-
-            breakTime =
-                Number(changes.breakTime.newValue) || 0;
-
+            breakTime = Number(changes.breakTime.newValue) || 0;
             updateStats();
         }
 
         if (changes.sessions) {
-
-            sessions =
-                Number(changes.sessions.newValue) || 0;
-
+            sessions = Number(changes.sessions.newValue) || 0;
             updateStats();
         }
     }
