@@ -30,7 +30,6 @@ let tasks = [];
 // Website usage
 let websiteUsage = {};
 
-
 // =====================================
 // GET ELEMENT
 // =====================================
@@ -38,7 +37,6 @@ let websiteUsage = {};
 function getElement(id) {
     return document.getElementById(id);
 }
-
 
 // =====================================
 // LOAD DATA
@@ -56,7 +54,7 @@ function loadData() {
             "tasks",
             "websiteUsage"
         ],
-        function(data) {
+        function (data) {
             focusTime = Number(data.focusTime) || 0;
             breakTime = Number(data.breakTime) || 0;
             sessions = Number(data.sessions) || 0;
@@ -65,9 +63,7 @@ function loadData() {
             focusDuration = Number(data.focusDuration) || 25;
             breakDuration = Number(data.breakDuration) || 5;
 
-            tasks = Array.isArray(data.tasks)
-                ? data.tasks
-                : [];
+            tasks = Array.isArray(data.tasks) ? data.tasks : [];
 
             websiteUsage =
                 data.websiteUsage &&
@@ -76,33 +72,27 @@ function loadData() {
                     : {};
 
             const limitInput = getElement("timeLimit");
-            const focusDurationInput = getElement("focusDurationInput");
-            const breakDurationInput = getElement("breakDurationInput");
+            const focusInput = getElement("focusDurationInput");
+            const breakInput = getElement("breakDurationInput");
 
             if (limitInput) {
                 limitInput.value = timeLimit;
             }
 
-            if (focusDurationInput) {
-                focusDurationInput.value = focusDuration;
+            if (focusInput) {
+                focusInput.value = focusDuration;
             }
 
-            if (breakDurationInput) {
-                breakDurationInput.value = breakDuration;
+            if (breakInput) {
+                breakInput.value = breakDuration;
             }
 
-            // Apply the saved duration when the popup opens.
-            timerSeconds =
-                (timerMode === "focus" ? focusDuration : breakDuration) * 60;
-
-            updateTimer();
             renderTasks();
             updateStats();
             updateWebsiteUsage();
         }
     );
 }
-
 
 // =====================================
 // CURRENT WEBSITE
@@ -120,31 +110,22 @@ function updateCurrentWebsite() {
             active: true,
             currentWindow: true
         },
-        function(tabs) {
-            if (!tabs || tabs.length === 0) {
-                websiteElement.innerText = "Unknown website";
-                return;
-            }
-
-            const tab = tabs[0];
-
-            if (!tab.url) {
+        function (tabs) {
+            if (!tabs || tabs.length === 0 || !tabs[0].url) {
                 websiteElement.innerText = "Unknown website";
                 return;
             }
 
             try {
-                const url = new URL(tab.url);
-                const hostname = url.hostname || "Unknown website";
-
-                websiteElement.innerText = hostname;
+                const url = new URL(tabs[0].url);
+                websiteElement.innerText =
+                    url.hostname || "Unknown website";
             } catch (error) {
                 websiteElement.innerText = "Unknown website";
             }
         }
     );
 }
-
 
 // =====================================
 // TIMER DISPLAY
@@ -154,17 +135,15 @@ function updateTimer() {
     const timerElement = getElement("timer");
     const modeElement = getElement("mode");
 
-    if (!timerElement) {
-        return;
+    if (timerElement) {
+        const minutes = Math.floor(timerSeconds / 60);
+        const seconds = timerSeconds % 60;
+
+        timerElement.innerText =
+            String(minutes).padStart(2, "0") +
+            ":" +
+            String(seconds).padStart(2, "0");
     }
-
-    const minutes = Math.floor(timerSeconds / 60);
-    const seconds = timerSeconds % 60;
-
-    timerElement.innerText =
-        String(minutes).padStart(2, "0") +
-        ":" +
-        String(seconds).padStart(2, "0");
 
     if (modeElement) {
         modeElement.innerText =
@@ -173,7 +152,6 @@ function updateTimer() {
                 : "Break Session";
     }
 }
-
 
 // =====================================
 // START TIMER
@@ -186,35 +164,31 @@ function startTimer() {
 
     timerRunning = true;
 
-    timerInterval = setInterval(
-        function() {
-            if (timerSeconds > 0) {
-                timerSeconds--;
+    timerInterval = setInterval(function () {
+        if (timerSeconds > 0) {
+            timerSeconds--;
 
-                if (timerMode === "focus") {
-                    focusTime++;
+            if (timerMode === "focus") {
+                focusTime++;
 
-                    chrome.storage.local.set({
-                        focusTime: focusTime
-                    });
-                } else {
-                    breakTime++;
-
-                    chrome.storage.local.set({
-                        breakTime: breakTime
-                    });
-                }
-
-                updateTimer();
-                updateStats();
+                chrome.storage.local.set({
+                    focusTime: focusTime
+                });
             } else {
-                completeTimer();
-            }
-        },
-        1000
-    );
-}
+                breakTime++;
 
+                chrome.storage.local.set({
+                    breakTime: breakTime
+                });
+            }
+
+            updateTimer();
+            updateStats();
+        } else {
+            completeTimer();
+        }
+    }, 1000);
+}
 
 // =====================================
 // PAUSE TIMER
@@ -229,7 +203,6 @@ function pauseTimer() {
     }
 }
 
-
 // =====================================
 // RESET TIMER
 // =====================================
@@ -242,7 +215,6 @@ function resetTimer() {
 
     updateTimer();
 }
-
 
 // =====================================
 // COMPLETE TIMER
@@ -268,7 +240,6 @@ function completeTimer() {
     updateTimer();
     updateStats();
 }
-
 
 // =====================================
 // CUSTOM TIMER DURATIONS
@@ -342,15 +313,14 @@ function createDurationControls() {
     saveButton.addEventListener("click", saveTimerDurations);
 }
 
-
-// =====================================
-// SAVE TIMER DURATIONS
-// =====================================
-
 function saveTimerDurations() {
     const focusInput = getElement("focusDurationInput");
     const breakInput = getElement("breakDurationInput");
     const message = getElement("durationsSaved");
+
+    if (!focusInput || !breakInput) {
+        return;
+    }
 
     let newFocusDuration = parseInt(focusInput.value, 10);
     let newBreakDuration = parseInt(breakInput.value, 10);
@@ -377,22 +347,22 @@ function saveTimerDurations() {
             focusDuration: focusDuration,
             breakDuration: breakDuration
         },
-        function() {
+        function () {
             if (message) {
                 message.innerText = "✓ Timer durations saved";
             }
 
-            // Apply the new duration if the timer is not running.
             if (!timerRunning) {
                 timerSeconds =
-                    (timerMode === "focus" ? focusDuration : breakDuration) * 60;
+                    (timerMode === "focus"
+                        ? focusDuration
+                        : breakDuration) * 60;
 
                 updateTimer();
             }
         }
     );
 }
-
 
 // =====================================
 // DAILY GOAL
@@ -419,7 +389,7 @@ function setDailyGoal() {
         {
             timeLimit: timeLimit
         },
-        function() {
+        function () {
             if (message) {
                 message.innerText =
                     "✓ Goal saved: " + timeLimit + " minutes";
@@ -430,28 +400,23 @@ function setDailyGoal() {
     );
 }
 
-
 // =====================================
 // PRODUCTIVITY SCORE
 // =====================================
 
 function calculateScore() {
     const goalSeconds = timeLimit * 60;
-
     let score = 0;
 
     if (goalSeconds > 0) {
         score = (focusTime / goalSeconds) * 100;
     }
 
-    // Task bonus
-    const completedTasks = tasks.filter(
-        function(task) {
-            return task.completed === true;
-        }
-    ).length;
+    const completedTasks = tasks.filter(function (task) {
+        return task.completed === true;
+    }).length;
 
-    score = score + (completedTasks * 5);
+    score += completedTasks * 5;
 
     if (score > 100) {
         score = 100;
@@ -463,7 +428,6 @@ function calculateScore() {
 
     return Math.round(score);
 }
-
 
 // =====================================
 // UPDATE STATISTICS
@@ -488,7 +452,7 @@ function updateStats() {
         if (focusTime >= timeLimit * 60) {
             statusText.innerText = "🎉 Daily Goal Completed";
         } else {
-            const remaining = (timeLimit * 60) - focusTime;
+            const remaining = timeLimit * 60 - focusTime;
             const minutesRemaining = Math.ceil(remaining / 60);
 
             statusText.innerText =
@@ -496,7 +460,6 @@ function updateStats() {
         }
     }
 
-    // Optional elements
     const statFocus = getElement("statFocus");
     const statBreak = getElement("statBreak");
     const statSessions = getElement("statSessions");
@@ -519,7 +482,6 @@ function updateStats() {
     }
 }
 
-
 // =====================================
 // FORMAT TIME
 // =====================================
@@ -535,7 +497,6 @@ function formatTime(seconds) {
     );
 }
 
-
 // =====================================
 // WEBSITE USAGE
 // =====================================
@@ -547,39 +508,31 @@ function updateWebsiteUsage() {
         return;
     }
 
-    if (
-        !websiteUsage ||
-        Object.keys(websiteUsage).length === 0
-    ) {
+    if (!websiteUsage || Object.keys(websiteUsage).length === 0) {
         usageList.innerText = "No usage data yet.";
         return;
     }
 
     const websites = Object.entries(websiteUsage);
 
-    websites.sort(
-        function(a, b) {
-            return b[1] - a[1];
-        }
-    );
+    websites.sort(function (a, b) {
+        return b[1] - a[1];
+    });
 
     usageList.innerHTML = "";
 
-    websites.forEach(
-        function(item) {
-            const website = item[0];
-            const seconds = Number(item[1]) || 0;
-            const minutes = Math.floor(seconds / 60);
+    websites.forEach(function (item) {
+        const website = item[0];
+        const seconds = Number(item[1]) || 0;
+        const minutes = Math.floor(seconds / 60);
 
-            const row = document.createElement("div");
-            row.className = "usage-item";
-            row.innerText = website + " - " + minutes + " min";
+        const row = document.createElement("div");
+        row.className = "usage-item";
+        row.innerText = website + " - " + minutes + " min";
 
-            usageList.appendChild(row);
-        }
-    );
+        usageList.appendChild(row);
+    });
 }
-
 
 // =====================================
 // TASKS
@@ -611,7 +564,6 @@ function addTask() {
     updateStats();
 }
 
-
 // =====================================
 // SAVE TASKS
 // =====================================
@@ -621,7 +573,6 @@ function saveTasks() {
         tasks: tasks
     });
 }
-
 
 // =====================================
 // RENDER TASKS
@@ -636,148 +587,124 @@ function renderTasks() {
 
     taskList.innerHTML = "";
 
-    tasks.forEach(
-        function(task) {
-            const li = document.createElement("li");
+    tasks.forEach(function (task) {
+        const li = document.createElement("li");
 
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.checked = task.completed;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = task.completed;
 
-            checkbox.addEventListener(
-                "change",
-                function() {
-                    task.completed = checkbox.checked;
+        checkbox.addEventListener("change", function () {
+            task.completed = checkbox.checked;
 
-                    saveTasks();
-                    updateStats();
-                    renderTasks();
-                }
-            );
+            saveTasks();
+            updateStats();
+            renderTasks();
+        });
 
-            const span = document.createElement("span");
-            span.innerText = task.text;
+        const span = document.createElement("span");
+        span.innerText = task.text;
 
-            if (task.completed) {
-                span.style.textDecoration = "line-through";
-            }
-
-            const deleteButton = document.createElement("button");
-            deleteButton.innerText = "Delete";
-
-            deleteButton.addEventListener(
-                "click",
-                function() {
-                    tasks = tasks.filter(
-                        function(t) {
-                            return t.id !== task.id;
-                        }
-                    );
-
-                    saveTasks();
-                    renderTasks();
-                    updateStats();
-                }
-            );
-
-            li.appendChild(checkbox);
-            li.appendChild(span);
-            li.appendChild(deleteButton);
-
-            taskList.appendChild(li);
+        if (task.completed) {
+            span.style.textDecoration = "line-through";
         }
-    );
-}
 
+        const deleteButton = document.createElement("button");
+        deleteButton.innerText = "Delete";
+
+        deleteButton.addEventListener("click", function () {
+            tasks = tasks.filter(function (t) {
+                return t.id !== task.id;
+            });
+
+            saveTasks();
+            renderTasks();
+            updateStats();
+        });
+
+        li.appendChild(checkbox);
+        li.appendChild(span);
+        li.appendChild(deleteButton);
+
+        taskList.appendChild(li);
+    });
+}
 
 // =====================================
 // BUTTON EVENTS
 // =====================================
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function() {
-        const startBtn = getElement("startBtn");
-        const pauseBtn = getElement("pauseBtn");
-        const resetBtn = getElement("resetBtn");
-        const saveLimit = getElement("saveLimit");
-        const addTaskButton = getElement("addTask");
+document.addEventListener("DOMContentLoaded", function () {
+    const startBtn = getElement("startBtn");
+    const pauseBtn = getElement("pauseBtn");
+    const resetBtn = getElement("resetBtn");
+    const saveLimit = getElement("saveLimit");
+    const addTaskButton = getElement("addTask");
 
-        if (startBtn) {
-            startBtn.addEventListener("click", startTimer);
-        }
-
-        if (pauseBtn) {
-            pauseBtn.addEventListener("click", pauseTimer);
-        }
-
-        if (resetBtn) {
-            resetBtn.addEventListener("click", resetTimer);
-        }
-
-        if (saveLimit) {
-            saveLimit.addEventListener("click", setDailyGoal);
-        }
-
-        if (addTaskButton) {
-            addTaskButton.addEventListener("click", addTask);
-        }
-
-        const taskInput = getElement("taskInput");
-
-        if (taskInput) {
-            taskInput.addEventListener(
-                "keydown",
-                function(event) {
-                    if (event.key === "Enter") {
-                        addTask();
-                    }
-                }
-            );
-        }
-
-        createDurationControls();
-        loadData();
-        updateCurrentWebsite();
-        updateTimer();
-
-        // Refresh website while the popup is open.
-        setInterval(
-            updateCurrentWebsite,
-            2000
-        );
+    if (startBtn) {
+        startBtn.addEventListener("click", startTimer);
     }
-);
 
+    if (pauseBtn) {
+        pauseBtn.addEventListener("click", pauseTimer);
+    }
+
+    if (resetBtn) {
+        resetBtn.addEventListener("click", resetTimer);
+    }
+
+    if (saveLimit) {
+        saveLimit.addEventListener("click", setDailyGoal);
+    }
+
+    if (addTaskButton) {
+        addTaskButton.addEventListener("click", addTask);
+    }
+
+    const taskInput = getElement("taskInput");
+
+    if (taskInput) {
+        taskInput.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                addTask();
+            }
+        });
+    }
+
+    createDurationControls();
+    loadData();
+    updateCurrentWebsite();
+    updateTimer();
+
+    setInterval(updateCurrentWebsite, 2000);
+});
 
 // =====================================
 // STORAGE LISTENER
 // =====================================
 
-chrome.storage.onChanged.addListener(
-    function(changes, areaName) {
-        if (areaName !== "local") {
-            return;
-        }
-
-        if (changes.websiteUsage) {
-            websiteUsage = changes.websiteUsage.newValue || {};
-            updateWebsiteUsage();
-        }
-
-        if (changes.focusTime) {
-            focusTime = Number(changes.focusTime.newValue) || 0;
-            updateStats();
-        }
-
-        if (changes.breakTime) {
-            breakTime = Number(changes.breakTime.newValue) || 0;
-            updateStats();
-        }
-
-        if (changes.sessions) {
-            sessions = Number(changes.sessions.newValue) || 0;
-            updateStats();
-        }
+chrome.storage.onChanged.addListener(function (changes, areaName) {
+    if (areaName !== "local") {
+        return;
     }
-);
+
+    if (changes.websiteUsage) {
+        websiteUsage = changes.websiteUsage.newValue || {};
+        updateWebsiteUsage();
+    }
+
+    if (changes.focusTime) {
+        focusTime = Number(changes.focusTime.newValue) || 0;
+        updateStats();
+    }
+
+    if (changes.breakTime) {
+        breakTime = Number(changes.breakTime.newValue) || 0;
+        updateStats();
+    }
+
+    if (changes.sessions) {
+        sessions = Number(changes.sessions.newValue) || 0;
+        updateStats();
+    }
+});
